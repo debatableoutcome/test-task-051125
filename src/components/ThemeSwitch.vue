@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useThemeStore, type ThemeName } from "../stores/theme";
-const store = useThemeStore();
-const value = computed({
-  get: () => store.current,
-  set: (v) => store.setTheme(v as ThemeName),
+import { useLangStore } from "../stores/lang";
+
+const theme = useThemeStore();
+const lang = useLangStore();
+
+const model = computed({
+  get: () => theme.current,
+  set: (v) => theme.setTheme(v as ThemeName),
 });
 </script>
 
 <template>
   <div class="theme-switch">
     <label class="theme-switch__label">
-      <span class="theme-switch__title">Theme</span>
-      <select class="theme-switch__select" v-model="value">
+      <span class="theme-switch__title">{{ lang.t.theme }}</span>
+      <select class="theme-switch__select" v-model="model">
         <option value="neutral">neutral</option>
         <option value="pastel">pastel</option>
         <option value="contrast">contrast</option>
@@ -23,6 +27,7 @@ const value = computed({
 
 <style lang="scss" scoped>
 .theme-switch {
+  width: 18rem;
   &__label {
     display: flex;
     flex-direction: column;
@@ -33,6 +38,7 @@ const value = computed({
     color: var(--color-muted);
   }
   &__select {
+    width: 100%;
     padding: 0.6rem 0.8rem;
     border: 0.1rem solid var(--color-border);
     border-radius: var(--radius);

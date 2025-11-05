@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { useLangStore, type Lang } from "../stores/lang";
 
-type Locale = "en" | "ru";
+const i18n = useLangStore();
 
-const locale = ref<Locale>("en");
-const locales = {
+const LANG_MAP: Record<Lang, { months: string[]; weekdays: string[] }> = {
   en: {
     months: [
       "January",
@@ -39,34 +39,142 @@ const locales = {
     ],
     weekdays: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
   },
-} as const;
+  de: {
+    months: [
+      "Januar",
+      "Februar",
+      "März",
+      "April",
+      "Mai",
+      "Juni",
+      "Juli",
+      "August",
+      "September",
+      "Oktober",
+      "November",
+      "Dezember",
+    ],
+    weekdays: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+  },
+  es: {
+    months: [
+      "Enero",
+      "Febrero",
+      "Marzo",
+      "Abril",
+      "Mayo",
+      "Junio",
+      "Julio",
+      "Agosto",
+      "Septiembre",
+      "Octubre",
+      "Noviembre",
+      "Diciembre",
+    ],
+    weekdays: ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+  },
+};
 
-const now = new Date();
-const currentMonth = ref(now.getMonth());
-const currentYear = ref(now.getFullYear());
+const today = new Date();
+const monthIdx = ref(today.getMonth());
+const yearNum = ref(today.getFullYear());
+const picked = ref<{ y: number; m: number; d: number } | null>(null);
 
-const monthName = computed(
-  () => locales[locale.value].months[currentMonth.value]
+const monthTitle = computed(
+  () => LANG_MAP[i18n.current].months[monthIdx.value]
 );
-const weekdayNames = computed(() => locales[locale.value].weekdays);
+const weekShort = computed(() => LANG_MAP[i18n.current].weekdays);
 
-function prevMonth() {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11;
-    currentYear.value--;
+function getDaysInMonth(y: number, m: number) {
+  return new Date(y, m + 1, 0).getDate();
+}
+function fmt(y: number, m: number, d: number) {
+  const mm = String(m + 1).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+const calendarRows = computed(() => {
+  const first = new Date(yearNum.value, monthIdx.value, 1);
+  const start = first.getDay();
+  const dim = getDaysInMonth(yearNum.value, monthIdx.value);
+  const prevDim = getDaysInMonth(yearNum.value, monthIdx.value - 1);
+  const total = Math.ceil((start + dim) / 7) * 7;
+  const cells: Array<{
+    y: number;
+    m: number;
+    d: number;
+    inMonth: boolean;
+    k: string;
+  }> = [];
+  for (let i = 0; i < total; i++) {
+    const off = i - start + 1;
+    let y = yearNum.value;
+    let m = monthIdx.value;
+    let d = 0;
+    let inMonth = true;
+    if (off <= 0) {
+      inMonth = false;
+      d = prevDim + off;
+      if (m === 0) {
+        m = 11;
+        y -= 1;
+      } else {
+        m -= 1;
+      }
+    } else if (off > dim) {
+      inMonth = false;
+      d = off - dim;
+      if (m === 11) {
+        m = 0;
+        y += 1;
+      } else {
+        m += 1;
+      }
+    } else {
+      d = off;
+    }
+    cells.push({ y, m, d, inMonth, k: fmt(y, m, d) });
+  }
+  const rows: (typeof cells)[] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
+});
+
+function isToday(y: number, m: number, d: number) {
+  const t = new Date();
+  return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
+}
+function isPicked(y: number, m: number, d: number) {
+  if (!picked.value) return false;
+  return picked.value.y === y && picked.value.m === m && picked.value.d === d;
+}
+function handlePick(cell: { y: number; m: number; d: number }) {
+  picked.value = { y: cell.y, m: cell.m, d: cell.d };
+  yearNum.value = cell.y;
+  monthIdx.value = cell.m;
+}
+function goPrev() {
+  if (monthIdx.value === 0) {
+    monthIdx.value = 11;
+    yearNum.value--;
   } else {
-    currentMonth.value--;
+    monthIdx.value--;
+  }
+}
+function goNext() {
+  if (monthIdx.value === 11) {
+    monthIdx.value = 0;
+    yearNum.value++;
+  } else {
+    monthIdx.value++;
   }
 }
 
-function nextMonth() {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0;
-    currentYear.value++;
-  } else {
-    currentMonth.value++;
-  }
-}
+const langModel = computed({
+  get: () => i18n.current,
+  set: (v) => i18n.setLang(v as Lang),
+});
 </script>
 
 <template>
@@ -76,18 +184,16 @@ function nextMonth() {
         class="calendar__nav calendar__nav--prev"
         type="button"
         aria-label="Previous month"
-        @click="prevMonth"
+        @click="goPrev"
       >
         ‹
       </button>
-
-      <div class="calendar__title">{{ monthName }} {{ currentYear }}</div>
-
+      <div class="calendar__title">{{ monthTitle }} {{ yearNum }}</div>
       <button
         class="calendar__nav calendar__nav--next"
         type="button"
         aria-label="Next month"
-        @click="nextMonth"
+        @click="goNext"
       >
         ›
       </button>
@@ -95,10 +201,12 @@ function nextMonth() {
 
     <div class="calendar__controls">
       <label class="calendar__label">
-        <span class="calendar__small">Language</span>
-        <select class="calendar__select" v-model="locale">
+        <span class="calendar__small">{{ i18n.t.language }}</span>
+        <select class="calendar__select" v-model="langModel">
           <option value="en">en</option>
           <option value="ru">ru</option>
+          <option value="de">de</option>
+          <option value="es">es</option>
         </select>
       </label>
     </div>
@@ -106,12 +214,28 @@ function nextMonth() {
     <div class="calendar__grid">
       <div class="calendar__row calendar__row--head">
         <div
-          v-for="w in weekdayNames"
+          v-for="w in weekShort"
           :key="w"
           class="calendar__cell calendar__cell--head"
         >
           {{ w }}
         </div>
+      </div>
+      <div v-for="(week, i) in calendarRows" :key="i" class="calendar__row">
+        <button
+          v-for="cell in week"
+          :key="cell.k"
+          type="button"
+          class="calendar__cell"
+          :class="{
+            'calendar__cell--muted': !cell.inMonth,
+            'calendar__cell--today': isToday(cell.y, cell.m, cell.d),
+            'calendar__cell--picked': isPicked(cell.y, cell.m, cell.d),
+          }"
+          @click="handlePick(cell)"
+        >
+          <span class="calendar__day">{{ cell.d }}</span>
+        </button>
       </div>
     </div>
   </section>
@@ -126,6 +250,7 @@ function nextMonth() {
   background: var(--color-surface);
   box-shadow: var(--shadow);
   color: var(--color-text);
+  margin-bottom: 2rem;
 
   &__header {
     display: flex;
@@ -163,7 +288,6 @@ function nextMonth() {
     font-size: 1.2rem;
     color: var(--color-muted);
   }
-
   &__select {
     padding: 0.4rem 0.6rem;
     border: 0.1rem solid var(--color-border);
@@ -178,26 +302,42 @@ function nextMonth() {
   }
   &__row {
     display: flex;
-    &--head {
-      margin-bottom: 0.6rem;
-    }
+    gap: 0.2rem;
+    margin-bottom: 0.2rem;
   }
   &__cell {
     width: 3.6rem;
     height: 3.6rem;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 0.6rem;
+    border: 0.1rem solid transparent;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
   }
   &__cell--head {
     font-weight: 600;
     color: var(--color-muted);
     font-size: 1.2rem;
+    cursor: default;
   }
-  &__placeholder {
-    padding: 1.6rem;
-    font-size: 1.2rem;
+  &__cell--muted {
     color: var(--color-muted);
+  }
+  &__cell--today {
+    border-color: var(--color-accent);
+  }
+  &__cell--picked {
+    background: var(--color-accent);
+    color: #fff;
+    border-color: var(--color-accent);
+  }
+
+  &__day {
+    font-size: 1.3rem;
+    line-height: 1;
   }
 }
 </style>
