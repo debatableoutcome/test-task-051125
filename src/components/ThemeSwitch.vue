@@ -10,6 +10,12 @@ const model = computed({
   get: () => theme.current,
   set: (v) => theme.setTheme(v as ThemeName),
 });
+
+const opts = computed(() => [
+  { value: "neutral", label: lang.t.themeOptions.neutral },
+  { value: "pastel", label: lang.t.themeOptions.pastel },
+  { value: "contrast", label: lang.t.themeOptions.contrast },
+]);
 </script>
 
 <template>
@@ -17,9 +23,9 @@ const model = computed({
     <label class="theme-switch__label">
       <span class="theme-switch__title">{{ lang.t.theme }}</span>
       <select class="theme-switch__select" v-model="model">
-        <option value="neutral">neutral</option>
-        <option value="pastel">pastel</option>
-        <option value="contrast">contrast</option>
+        <option v-for="o in opts" :key="o.value" :value="o.value">
+          {{ o.label }}
+        </option>
       </select>
     </label>
   </div>
