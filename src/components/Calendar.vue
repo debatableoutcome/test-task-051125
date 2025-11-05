@@ -113,8 +113,6 @@ function nextMonth() {
           {{ w }}
         </div>
       </div>
-
-      <div class="calendar__placeholder">Calendar grid will be here</div>
     </div>
   </section>
 </template>
@@ -122,11 +120,12 @@ function nextMonth() {
 <style lang="scss" scoped>
 .calendar {
   width: 30rem;
-  border: 0.1rem solid #e5e7eb;
-  border-radius: 0.8rem;
+  border: 0.1rem solid var(--color-border);
+  border-radius: var(--radius);
   padding: 1.2rem;
-  background: #fff;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  background: var(--color-surface);
+  box-shadow: var(--shadow);
+  color: var(--color-text);
 
   &__header {
     display: flex;
@@ -134,12 +133,10 @@ function nextMonth() {
     justify-content: space-between;
     margin-bottom: 0.8rem;
   }
-
   &__title {
     font-weight: 600;
     font-size: 1.6rem;
   }
-
   &__nav {
     width: 2.8rem;
     height: 2.8rem;
@@ -147,15 +144,7 @@ function nextMonth() {
     background: transparent;
     cursor: pointer;
     font-size: 1.8rem;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-
-    &--prev {
-    }
-    &--next {
-    }
+    color: var(--color-text);
   }
 
   &__controls {
@@ -163,57 +152,52 @@ function nextMonth() {
     gap: 1.2rem;
     margin-bottom: 0.8rem;
   }
-
   &__label {
     display: flex;
     flex-direction: column;
     font-size: 1.2rem;
   }
-
   &__small {
     opacity: 0.7;
     margin-bottom: 0.4rem;
     font-size: 1.2rem;
+    color: var(--color-muted);
   }
 
   &__select {
     padding: 0.4rem 0.6rem;
-    border: 0.1rem solid #e5e7eb;
+    border: 0.1rem solid var(--color-border);
     border-radius: 0.6rem;
     font-size: 1.4rem;
-    background: #fff;
+    background: var(--color-surface);
+    color: var(--color-text);
   }
 
   &__grid {
     user-select: none;
   }
-
   &__row {
     display: flex;
-
     &--head {
       margin-bottom: 0.6rem;
     }
   }
-
   &__cell {
     width: 3.6rem;
     height: 3.6rem;
     display: flex;
     align-items: center;
     justify-content: center;
-
-    &--head {
-      font-weight: 600;
-      color: #6b7280;
-      font-size: 1.2rem;
-    }
   }
-
+  &__cell--head {
+    font-weight: 600;
+    color: var(--color-muted);
+    font-size: 1.2rem;
+  }
   &__placeholder {
     padding: 1.6rem;
     font-size: 1.2rem;
-    color: #9ca3af;
+    color: var(--color-muted);
   }
 }
 </style>
