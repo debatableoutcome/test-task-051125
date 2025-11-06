@@ -9,6 +9,9 @@ export const useLangStore = defineStore("lang", {
       en: {
         theme: "Theme",
         language: "Language",
+        date: "Date",
+        datePlaceholder: "YYYY-MM-DD",
+        apply: "Apply",
         themeOptions: {
           neutral: "Neutral",
           pastel: "Pastel",
@@ -18,6 +21,9 @@ export const useLangStore = defineStore("lang", {
       ru: {
         theme: "Тема",
         language: "Язык",
+        date: "Дата",
+        datePlaceholder: "ГГГГ-ММ-ДД",
+        apply: "Готово",
         themeOptions: {
           neutral: "Нейтральный",
           pastel: "Пастельный",
@@ -27,6 +33,9 @@ export const useLangStore = defineStore("lang", {
       de: {
         theme: "Thema",
         language: "Sprache",
+        date: "Datum",
+        datePlaceholder: "JJJJ-MM-TT",
+        apply: "OK",
         themeOptions: {
           neutral: "Neutral",
           pastel: "Pastell",
@@ -36,6 +45,9 @@ export const useLangStore = defineStore("lang", {
       es: {
         theme: "Tema",
         language: "Idioma",
+        date: "Fecha",
+        datePlaceholder: "AAAA-MM-DD",
+        apply: "Aplicar",
         themeOptions: {
           neutral: "Neutro",
           pastel: "Pastel",
@@ -44,9 +56,7 @@ export const useLangStore = defineStore("lang", {
       },
     },
   }),
-  getters: {
-    t: (s) => s.dict[s.current],
-  },
+  getters: { t: (s) => s.dict[s.current] },
   actions: {
     setLang(l: Lang) {
       this.current = l;

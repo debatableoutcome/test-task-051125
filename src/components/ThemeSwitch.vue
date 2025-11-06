@@ -33,7 +33,7 @@ const opts = computed(() => [
 
 <style lang="scss" scoped>
 .theme-switch {
-  width: 18rem;
+  width: 100%;
   &__label {
     display: flex;
     flex-direction: column;
