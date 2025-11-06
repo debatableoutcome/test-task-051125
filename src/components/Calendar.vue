@@ -3,16 +3,10 @@ import { ref, computed, watch } from "vue";
 import { useLangStore, type Lang } from "../stores/lang";
 import { useDateStore } from "../stores/date";
 
-const props = defineProps<{ modelValue?: string }>();
-const emit = defineEmits<{
-  "update:modelValue": [v: string];
-  select: [v: string];
-}>();
-
 const i18n = useLangStore();
 const date = useDateStore();
 
-const MAP: Record<Lang, { months: string[]; weekdays: string[] }> = {
+const LANG_MAP: Record<Lang, { months: string[]; weekdays: string[] }> = {
   en: {
     months: [
       "January",
@@ -83,7 +77,24 @@ const MAP: Record<Lang, { months: string[]; weekdays: string[] }> = {
   },
 };
 
-function daysIn(y: number, m: number) {
+const LABELS = {
+  en: { today: "Today", language: "Language" },
+  ru: { today: "Сегодня", language: "Язык" },
+  de: { today: "Heute", language: "Sprache" },
+  es: { today: "Hoy", language: "Idioma" },
+};
+
+const today = new Date();
+const monthIdx = ref(today.getMonth());
+const yearNum = ref(today.getFullYear());
+const picked = ref<{ y: number; m: number; d: number } | null>(null);
+
+const monthTitle = computed(
+  () => LANG_MAP[i18n.current].months[monthIdx.value]
+);
+const weekShort = computed(() => LANG_MAP[i18n.current].weekdays);
+
+function getDaysInMonth(y: number, m: number) {
   return new Date(y, m + 1, 0).getDate();
 }
 function fmt(y: number, m: number, d: number) {
@@ -92,19 +103,20 @@ function fmt(y: number, m: number, d: number) {
   return `${y}-${mm}-${dd}`;
 }
 
-const today = new Date();
-const monthIdx = ref(today.getMonth());
-const yearNum = ref(today.getFullYear());
-const picked = ref<{ y: number; m: number; d: number } | null>(null);
+function handleToday() {
+  const t = new Date();
+  const v = fmt(t.getFullYear(), t.getMonth(), t.getDate());
+  picked.value = { y: t.getFullYear(), m: t.getMonth(), d: t.getDate() };
+  yearNum.value = t.getFullYear();
+  monthIdx.value = t.getMonth();
+  date.set(v);
+}
 
-const monthTitle = computed(() => MAP[i18n.current].months[monthIdx.value]);
-const weekShort = computed(() => MAP[i18n.current].weekdays);
-
-const rows = computed(() => {
+const calendarRows = computed(() => {
   const first = new Date(yearNum.value, monthIdx.value, 1);
   const start = first.getDay();
-  const dim = daysIn(yearNum.value, monthIdx.value);
-  const prevDim = daysIn(yearNum.value, monthIdx.value - 1);
+  const dim = getDaysInMonth(yearNum.value, monthIdx.value);
+  const prevDim = getDaysInMonth(yearNum.value, monthIdx.value - 1);
   const total = Math.ceil((start + dim) / 7) * 7;
   const cells: Array<{
     y: number;
@@ -142,20 +154,52 @@ const rows = computed(() => {
     }
     cells.push({ y, m, d, inMonth, k: fmt(y, m, d) });
   }
-  const out: (typeof cells)[] = [];
-  for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
-  return out;
+  const rows: (typeof cells)[] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
 });
 
-function onPick(cell: { y: number; m: number; d: number }) {
+function isToday(y: number, m: number, d: number) {
+  const t = new Date();
+  return t.getFullYear() === y && t.getMonth() === m && t.getDate() === d;
+}
+function isPicked(y: number, m: number, d: number) {
+  if (!picked.value) return false;
+  return picked.value.y === y && picked.value.m === m && picked.value.d === d;
+}
+
+const emit = defineEmits<{ select: [v: string] }>();
+
+function handlePick(cell: { y: number; m: number; d: number }) {
   picked.value = { y: cell.y, m: cell.m, d: cell.d };
   yearNum.value = cell.y;
   monthIdx.value = cell.m;
   const v = fmt(cell.y, cell.m, cell.d);
   date.set(v);
-  emit("update:modelValue", v);
   emit("select", v);
 }
+
+function goPrev() {
+  if (monthIdx.value === 0) {
+    monthIdx.value = 11;
+    yearNum.value--;
+  } else {
+    monthIdx.value--;
+  }
+}
+function goNext() {
+  if (monthIdx.value === 11) {
+    monthIdx.value = 0;
+    yearNum.value++;
+  } else {
+    monthIdx.value++;
+  }
+}
+
+const langModel = computed({
+  get: () => i18n.current,
+  set: (v) => i18n.setLang(v as Lang),
+});
 
 watch(
   () => date.selected,
@@ -165,19 +209,9 @@ watch(
     const y = +m[1],
       mm = +m[2] - 1,
       d = +m[3];
-    if (mm < 0 || mm > 11) return;
     yearNum.value = y;
     monthIdx.value = mm;
     picked.value = { y, m: mm, d };
-  },
-  { immediate: true }
-);
-
-watch(
-  () => props.modelValue,
-  (v) => {
-    if (!v) return;
-    date.set(v);
   },
   { immediate: true }
 );
@@ -190,7 +224,7 @@ watch(
         class="calendar__nav calendar__nav--prev"
         type="button"
         aria-label="Previous month"
-        @click="monthIdx === 0 ? ((monthIdx = 11), yearNum--) : monthIdx--"
+        @click="goPrev"
       >
         ‹
       </button>
@@ -199,11 +233,26 @@ watch(
         class="calendar__nav calendar__nav--next"
         type="button"
         aria-label="Next month"
-        @click="monthIdx === 11 ? ((monthIdx = 0), yearNum++) : monthIdx++"
+        @click="goNext"
       >
         ›
       </button>
     </header>
+
+    <div class="calendar__controls">
+      <label class="calendar__label">
+        <span class="calendar__small">{{ LABELS[i18n.current].language }}</span>
+        <select class="calendar__select" v-model="langModel">
+          <option value="en">en</option>
+          <option value="ru">ru</option>
+          <option value="de">de</option>
+          <option value="es">es</option>
+        </select>
+      </label>
+      <button class="calendar__today" type="button" @click="handleToday">
+        {{ LABELS[i18n.current].today }}
+      </button>
+    </div>
 
     <div class="calendar__grid">
       <div class="calendar__row calendar__row--head">
@@ -215,7 +264,7 @@ watch(
           {{ w }}
         </div>
       </div>
-      <div v-for="(week, i) in rows" :key="i" class="calendar__row">
+      <div v-for="(week, i) in calendarRows" :key="i" class="calendar__row">
         <button
           v-for="cell in week"
           :key="cell.k"
@@ -223,13 +272,10 @@ watch(
           class="calendar__cell"
           :class="{
             'calendar__cell--muted': !cell.inMonth,
-            'calendar__cell--picked':
-              picked &&
-              picked.y === cell.y &&
-              picked.m === cell.m &&
-              picked.d === cell.d,
+            'calendar__cell--today': isToday(cell.y, cell.m, cell.d),
+            'calendar__cell--picked': isPicked(cell.y, cell.m, cell.d),
           }"
-          @click="onPick(cell)"
+          @click="handlePick(cell)"
         >
           <span class="calendar__day">{{ cell.d }}</span>
         </button>
@@ -268,6 +314,48 @@ watch(
     color: var(--color-text);
   }
 
+  &__controls {
+    display: flex;
+    margin-bottom: 0.8rem;
+    justify-content: space-between;
+  }
+  &__label {
+    display: flex;
+    flex-direction: column;
+    font-size: 1.2rem;
+  }
+  &__small {
+    opacity: 0.7;
+    margin-bottom: 0.4rem;
+    font-size: 1.2rem;
+    color: var(--color-muted);
+  }
+  &__select {
+    padding: 0.4rem 0.6rem;
+    border: 0.1rem solid var(--color-border);
+    border-radius: 0.6rem;
+    font-size: 1.4rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  &__today {
+    align-self: self-end;
+    border: 0.1rem solid var(--color-border);
+    border-radius: 0.6rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: 0.4rem 0.8rem;
+    height: 3rem;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    &:hover {
+      background: var(--color-accent);
+      color: #fff;
+    }
+  }
+
   &__grid {
     user-select: none;
   }
@@ -297,11 +385,15 @@ watch(
   &__cell--muted {
     color: var(--color-muted);
   }
+  &__cell--today {
+    border-color: var(--color-accent);
+  }
   &__cell--picked {
     background: var(--color-accent);
     color: #fff;
     border-color: var(--color-accent);
   }
+
   &__day {
     font-size: 1.3rem;
     line-height: 1;
